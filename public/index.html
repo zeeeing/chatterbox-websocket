@@ -8,10 +8,10 @@
     <link rel="icon" href="/public/favicon.ico" type="image/x-icon" />
     <!-- You may choose to use the message constants defined in the file below -->
     <script src="/utils/constants.js"></script>
-    <title>ChatCademy</title>
+    <title>ChatterBox</title>
   </head>
   <body>
-    <h2>ChatCademy</h2>
+    <h2>ChatterBox</h2>
     <div class="chat">
       <!-- Messages will appear here -->
     </div>
@@ -21,18 +21,14 @@
     </form>
 
     <script>
-      ////////////////////////////////////////////////
-      ////////////// VARIABLES ///////////////////////
-      ////////////////////////////////////////////////
-
-      // This variable will hold the WebSocket client connection.
-      // Initialize in the init() function
       let wsClient;
+      // customise username or get randomly generated username
+      const username = prompt(
+        "Enter your username: ",
+        "User" + Math.floor(Math.random() * 1000)
+      );
 
-      ////////////////////////////////////////////////
-      //////////////// DOM SETUP /////////////////////
-      ////////////////////////////////////////////////
-
+      // DOM Setup
       const messageBox = document.querySelector("#messageBox");
       const messageForm = document.querySelector("#messageForm");
 
@@ -49,49 +45,46 @@
         sendMessageToServer(message);
       };
 
-      ////////////////////////////////////////////////
-      ////////////// WS CLIENT LOGIC /////////////////
-      ////////////////////////////////////////////////
-
+      // ws client logic
       function init() {
-        /* Note: 
-      Though the conditional block below is not necessary, it is a best practice to avoid
-      tampering with a cluttered namespace.
-      */
-
         // If a WebSocket connection exists already, close it
         if (wsClient) {
           wsClient.onerror = wsClient.onopen = wsClient.onclose = null;
           wsClient.close();
         }
 
-        // TODO:
-        // Exercise 4: Create a new WebSocket connection with the server using the ws protocol.
+        // Create a new WebSocket connection with the server using the ws protocol.
         const URL = "ws://localhost:" + PORT;
         wsClient = new WebSocket(URL);
 
-        // TODO:
-        // Exercise 5: Respond to connections by defining the .onopen event handler.
+        // Respond to connections by defining the .onopen event handler.
         wsClient.onopen = (event) => {
           console.log("Connection to the WebSocket server established.");
           const data = {
-            type: "NEW_USER",
+            type: CLIENT.MESSAGE.NEW_USER,
+            payload: { username },
           };
           wsClient.send(JSON.stringify(data));
         };
 
-        // TODO:
-        // Exercise 7: Respond to messages from the servery by defining the .onmessage event handler
-        // Exercise 9: Parse custom message types, formatting each message based on the type.
+        // Respond to messages from the servery by defining the .onmessage event handler
         wsClient.onmessage = (msgEvent) => {
           const message = msgEvent.data;
           const { type, payload } = JSON.parse(message);
           switch (type) {
-            case "NEW_USER":
-              showMessageReceived("<em>A new user has joined the chat.</em>");
+            case SERVER.BROADCAST.NEW_USER_WITH_TIME:
+              showMessageReceived(
+                "<em>" +
+                  payload.username +
+                  " has joined the chat at " +
+                  payload.time +
+                  ".</em>"
+              );
               break;
-            case "NEW_MESSAGE":
-              showMessageReceived(payload.message);
+            case CLIENT.MESSAGE.NEW_MESSAGE:
+              showMessageReceived(
+                `<strong>[${payload.username} ${payload.time}]</strong> ${payload.message}`
+              );
               break;
             default:
               break;
@@ -123,20 +116,15 @@
           return;
         }
 
-        // TODO:
-        // Exercise 6: Send the message from the messageBox to the server
-        // Exercise 9: Send the message in a custom message object with .type and .payload properties
+        // Send the message from the messageBox to the server
         const data = {
-          type: "NEW_MESSAGE",
-          payload: { message: message },
+          type: CLIENT.MESSAGE.NEW_MESSAGE,
+          payload: { message, username },
         };
         wsClient.send(JSON.stringify(data));
       }
 
-      ////////////////////////////////////////////////
-      //////////// DOM HELPER FUNCTIONS //////////////
-      ////////////////////////////////////////////////
-
+      // DOM helper functions
       const messages = document.querySelector(".chat");
 
       // These functions are just aliases of the showNewMessage function

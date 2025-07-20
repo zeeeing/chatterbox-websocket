@@ -1,19 +1,10 @@
-///////////////////////////////////////////////
-///////////// IMPORTS + VARIABLES /////////////
-///////////////////////////////////////////////
-
 const http = require("http");
 const CONSTANTS = require("./utils/constants.js");
 const fs = require("fs");
 const path = require("path");
 const WebSocket = require("ws");
 
-// You may choose to use the constants defined in the file below
-const { PORT, CLIENT } = CONSTANTS;
-
-///////////////////////////////////////////////
-///////////// HTTP SERVER LOGIC ///////////////
-///////////////////////////////////////////////
+const { PORT, CLIENT, SERVER } = CONSTANTS;
 
 // Create the HTTP server
 const server = http.createServer((req, res) => {
@@ -31,34 +22,45 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(`${__dirname}/${filePath}`, "utf8").pipe(res);
 });
 
-///////////////////////////////////////////////
-////////////////// WS LOGIC ///////////////////
-///////////////////////////////////////////////
-
-// TODO
-// Exercise 3: Create the WebSocket Server using the HTTP server
+// Create the WebSocket Server using the HTTP server
 const wsServer = new WebSocket.Server({ server });
 
-// TODO
-// Exercise 5: Respond to connection events
-// Exercise 6: Respond to client messages
-// Exercise 7: Send a message back to the client, echoing the message received
-// Exercise 8: Broadcast messages received to all other clients
 wsServer.on("connection", (socket) => {
   console.log("A new client has connected to the server.");
 
-  socket.on("message", (message) => {
-    console.log(`Received message: ${message}`);
+  socket.on("message", (data) => {
+    console.log(data);
 
-    // broadcast message to other connected clients
-    broadcast(message, socket);
+    const { type, payload } = JSON.parse(data);
+
+    switch (type) {
+      case CLIENT.MESSAGE.NEW_USER:
+        const newUserMessage = {
+          type: SERVER.BROADCAST.NEW_USER_WITH_TIME,
+          payload: {
+            username: payload.username,
+            time: new Date().toLocaleTimeString(),
+          },
+        };
+        broadcast(JSON.stringify(newUserMessage)); // broadcast to all clients
+        break;
+
+      case CLIENT.MESSAGE.NEW_MESSAGE:
+        // data already in the correct format
+        const parsed = JSON.parse(data);
+        parsed.payload.time = new Date().toLocaleTimeString();
+        formattedData = JSON.stringify(parsed);
+        broadcast(formattedData, socket);
+        break;
+
+      default:
+        console.log("Unknown message type received: ", type);
+        break;
+    }
   });
 });
 
-///////////////////////////////////////////////
-////////////// HELPER FUNCTIONS ///////////////
-///////////////////////////////////////////////
-
+// helper function to broadcast messages to all connected clients
 function broadcast(data, socketToOmit) {
   // TODO
   // Exercise 8: Implement the broadcast pattern. Exclude the emitting socket!
@@ -72,7 +74,7 @@ function broadcast(data, socketToOmit) {
   });
 }
 
-// Start the server listening on localhost:8080
+// Start server
 server.listen(PORT, () => {
   console.log(`Listening on: http://localhost:${server.address().port}`);
 });
